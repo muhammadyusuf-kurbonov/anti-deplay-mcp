@@ -4,15 +4,22 @@ import * as blessed from "blessed";
 export class TUI {
   private store: TaskStore;
   private screen: blessed.Widgets.Screen;
-  private list: blessed.Widgets.ListElement;
+  private list: blessed.Widgets.BoxElement;
   private header: blessed.Widgets.BoxElement;
   private footer: blessed.Widgets.BoxElement;
+  private debugPanel?: blessed.Widgets.BoxElement;
   private tasks: Task[] = [];
   private modalActive = false;
   private closeModal: (() => void) | null = null;
+  private logs: string[] = [];
+  private readonly MAX_LOGS = 50;
+  private selectedIdx = 0;
+  private showAll = false;
+  private readonly debug: boolean;
 
   constructor(store: TaskStore) {
     this.store = store;
+    this.debug = !!process.env.ANTI_DELAY_DEBUG;
 
     this.screen = blessed.screen({
       smartCSR: true,
@@ -28,19 +35,29 @@ export class TUI {
       style: { bold: true, fg: "cyan" },
     });
 
-    this.list = blessed.list({
+    this.list = blessed.box({
       parent: this.screen,
       top: 1,
       left: 0,
-      width: "100%",
+      width: this.debug ? "100%-30" : "100%",
       height: "100%-2",
-      keys: true,
-      vi: true,
-      mouse: true,
-      style: {
-        selected: { invert: true },
-      },
     });
+
+    if (this.debug) {
+      this.debugPanel = blessed.box({
+        parent: this.screen,
+        top: 1,
+        right: 0,
+        width: 30,
+        height: "100%-2",
+        border: { type: "line" },
+        label: " Debug ",
+        style: { border: { fg: "yellow" }, fg: "green" },
+        scrollable: true,
+        alwaysScroll: true,
+        scrollbar: { style: { bg: "yellow" } },
+      });
+    }
 
     this.footer = blessed.box({
       parent: this.screen,
@@ -52,26 +69,55 @@ export class TUI {
     });
 
     this.screen.key(["q", "C-c"], () => {
+      this.log("q: quit");
       if (!this.modalActive) this.quit();
     });
-    this.screen.key(" ", () => {
-      if (!this.modalActive) this.markDone();
-    });
     this.screen.key("d", () => {
+      this.log("d: delay");
       if (!this.modalActive) this.delayModal();
     });
     this.screen.key("a", () => {
+      this.log("a: add");
       if (!this.modalActive) this.addTaskModal();
     });
+    this.screen.key("s", () => {
+      this.showAll = !this.showAll;
+      this.log(`s: showAll=${this.showAll}`);
+      if (!this.modalActive) {
+        this.loadTasks();
+        this.render();
+      }
+    });
     this.screen.key("r", () => {
+      this.log("r: refresh");
       if (!this.modalActive) {
         this.loadTasks();
         this.render();
       }
     });
     this.screen.key("escape", () => {
+      this.log("esc");
       if (this.closeModal) {
         this.closeModal();
+      }
+    });
+
+    if (this.debug) {
+      this.screen.on("keypress", (_ch, key) => {
+        if (key) this.log(`key:${key.name}`);
+      });
+    }
+
+    this.screen.on("keypress", (_ch, key) => {
+      if (!key || this.modalActive) return;
+      if (key.name === "space") {
+        this.markDone();
+      } else if ((key.name === "up" || key.name === "k") && this.selectedIdx > 0) {
+        this.selectedIdx--;
+        this.render();
+      } else if ((key.name === "down" || key.name === "j") && this.selectedIdx < this.tasks.length - 1) {
+        this.selectedIdx++;
+        this.render();
       }
     });
 
@@ -87,42 +133,65 @@ export class TUI {
     this.render();
   }
 
+  private log(msg: string): void {
+    if (!this.debug) return;
+    this.logs.push(msg);
+    if (this.logs.length > this.MAX_LOGS) {
+      this.logs = this.logs.slice(-this.MAX_LOGS);
+    }
+    this.debugPanel!.setContent(this.logs.join("\n"));
+    this.debugPanel!.setScrollPerc(100);
+    this.screen.render();
+  }
+
   private selectedIndex(): number {
-    return (this.list as any).selected as number;
+    return this.selectedIdx;
   }
 
   private loadTasks(): void {
-    this.tasks = this.store.report().pending;
-    const sel = this.selectedIndex();
-    if (sel >= this.tasks.length) {
-      this.list.select(Math.max(0, this.tasks.length - 1));
+    this.tasks = this.showAll
+      ? this.store.list()
+      : this.store.report().pending;
+    if (this.selectedIdx >= this.tasks.length) {
+      this.selectedIdx = Math.max(0, this.tasks.length - 1);
     }
   }
 
   private render(): void {
-    const pending = this.tasks.length;
+    const mode = this.showAll ? "all" : "pending";
+    const count = this.tasks.length;
     const titleText = " anti-delay ";
     this.header.setContent(
-      `${titleText}${" ".repeat(Math.max(0, this.screen.cols - titleText.length - 20))}Pending: ${pending}`,
+      `${titleText}${" ".repeat(Math.max(0, this.screen.cols - titleText.length - 20))}${mode}: ${count}`,
     );
 
-    const items = this.tasks.map((t) => {
+    const STRIKE = "\x1b[9m";
+    const RESET = "\x1b[0m";
+    const lines = this.tasks.map((t, i) => {
       let flag = "";
       if (t.delayCount >= 3) flag = "⚠";
       else if (t.delayCount > 0) flag = `~${t.delayCount}x`;
 
       const title =
         t.title.length > 38 ? t.title.slice(0, 37) + "…" : t.title.padEnd(38);
-      return ` [${t.status}] ${title} Due: ${t.dueDate}${flag ? " " + flag : ""}`;
+      const prefix = i === this.selectedIdx ? "▸" : " ";
+      if (t.status === "done") {
+        return `${prefix} \u2713 ${STRIKE}${title}${RESET}`;
+      }
+      return `${prefix} [${t.status}] ${title} Due: ${t.dueDate}${flag ? " " + flag : ""}`;
     });
 
-    if (items.length === 0) {
-      items.push(" No pending tasks. Good work.");
+    if (lines.length === 0) {
+      lines.push(" No pending tasks. Good work.");
     }
 
-    this.list.setItems(items);
+    this.list.setContent(lines.join("\n"));
+    if (this.debug) {
+      this.debugPanel!.setContent(this.logs.join("\n"));
+      this.debugPanel!.setScrollPerc(100);
+    }
     this.footer.setContent(
-      " a:add  d:delay  space:done  ↑↓:navigate  r:refresh  q:quit ",
+      " a:add  d:delay  space:done  s:all  ↑↓:navigate  r:refresh  q:quit ",
     );
     this.screen.render();
   }
@@ -137,14 +206,15 @@ export class TUI {
   private addTaskModal(): void {
     this.modalActive = true;
 
+    const today = new Date().toISOString().split("T")[0];
     const box = blessed.box({
       parent: this.screen,
       top: "center",
       left: "center",
       width: 52,
-      height: 11,
+      height: 9,
       border: { type: "line" },
-      label: " Add New Task ",
+      label: " Add Task ",
       style: { border: { fg: "cyan" } },
     });
 
@@ -158,43 +228,21 @@ export class TUI {
       inputOnFocus: true,
     });
 
-    blessed.text({ parent: box, top: 2, left: 2, content: "Description:" });
-    const descInput = blessed.textbox({
+    blessed.text({
       parent: box,
       top: 3,
       left: 2,
-      width: 44,
-      height: 1,
-      inputOnFocus: true,
-    });
-
-    blessed.text({ parent: box, top: 4, left: 2, content: "Due (YYYY-MM-DD):" });
-    const dueInput = blessed.textbox({
-      parent: box,
-      top: 5,
-      left: 2,
-      width: 44,
-      height: 1,
-      inputOnFocus: true,
-    });
-
-    blessed.text({ parent: box, top: 6, left: 2, content: "Priority [medium]:" });
-    const priorityInput = blessed.textbox({
-      parent: box,
-      top: 7,
-      left: 2,
-      width: 44,
-      height: 1,
-      inputOnFocus: true,
+      content: `Due: ${today}  Priority: medium`,
+      style: { dim: true },
     });
 
     const submitBtn = blessed.button({
       parent: box,
-      top: 9,
+      top: 6,
       left: 6,
       width: 14,
       height: 1,
-      content: " Submit ",
+      content: " Save ",
       align: "center",
       keys: true,
       style: {
@@ -207,7 +255,7 @@ export class TUI {
 
     const cancelBtn = blessed.button({
       parent: box,
-      top: 9,
+      top: 6,
       left: 26,
       width: 14,
       height: 1,
@@ -228,24 +276,22 @@ export class TUI {
     };
     this.closeModal = cleanup;
 
-    titleInput.focus();
-
-    submitBtn.on("press", () => {
+    const submit = () => {
       const title = titleInput.value?.trim();
-      const dueDate = dueInput.value?.trim();
-      if (!title || !dueDate) return;
+      if (!title) return;
       this.store.create({
         title,
-        description: descInput.value?.trim() || undefined,
-        dueDate,
-        priority: (priorityInput.value?.trim() ||
-          "medium") as "low" | "medium" | "high",
+        dueDate: today,
+        priority: "medium",
       });
       cleanup();
-    });
+    };
 
+    titleInput.key("enter", submit);
+    submitBtn.on("press", submit);
     cancelBtn.on("press", cleanup);
 
+    titleInput.focus();
     this.screen.render();
   }
 
@@ -326,13 +372,15 @@ export class TUI {
 
     input.focus();
 
-    submitBtn.on("press", () => {
+    const submit = () => {
       const num = parseInt(input.value, 10);
       if (isNaN(num) || num < 1 || num > 168) return;
       this.store.delay(task.id, num);
       cleanup();
-    });
+    };
 
+    input.key("enter", submit);
+    submitBtn.on("press", submit);
     cancelBtn.on("press", cleanup);
 
     this.screen.render();

@@ -36,14 +36,15 @@ export class TaskStore {
   private dbPath: string;
 
   constructor(dbPath?: string) {
-    if (dbPath) {
-      this.dbPath = dbPath;
-    } else {
-      const dataHome =
+    this.dbPath =
+      dbPath ??
+      process.env.ANTI_DELAY_DB_PATH ??
+      join(
         process.env.XDG_DATA_HOME ??
-        join(process.env.HOME || "/tmp", ".local", "share");
-      this.dbPath = join(dataHome, "anti-delay", "tasks.db");
-    }
+          join(process.env.HOME || "/tmp", ".local", "share"),
+        "anti-delay",
+        "tasks.db",
+      );
 
     const dir = dirname(this.dbPath);
     if (!existsSync(dir)) {

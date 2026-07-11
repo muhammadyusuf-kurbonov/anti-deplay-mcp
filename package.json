@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "module": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "dev": "ANTI_DELAY_DB_PATH=./tmp/anti-delay-dev.db ANTI_DELAY_DEBUG=1 bun run src/index.ts"
+  },
   "bin": {
     "anti-delay": "./src/index.ts"
   },
