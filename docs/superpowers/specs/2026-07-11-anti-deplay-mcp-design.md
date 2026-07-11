@@ -1,4 +1,4 @@
-# anti-deplay MCP + CLI — Design Spec
+# anti-delay MCP + CLI — Design Spec
 
 ## Overview
 
@@ -15,10 +15,10 @@ src/
 ```
 
 - **Storage:** SQLite via `bun:sqlite`, no external DB dependencies.
-- **DB path:** `~/.local/share/anti-deplay/tasks.db` (XDG_DATA_HOME fallback).
+- **DB path:** `~/.local/share/anti-delay/tasks.db` (XDG_DATA_HOME fallback).
 - **One binary, two modes:**
-  - `anti-deplay <command>` — CLI mode
-  - `anti-deplay serve` — MCP server mode (stdio transport)
+  - `anti-delay <command>` — CLI mode
+  - `anti-delay serve` — MCP server mode (stdio transport)
 
 ## Task Schema
 
@@ -55,13 +55,13 @@ interface Task {
 ## CLI Commands
 
 ```
-anti-deplay task add <title> [--due <date>] [--priority <...>] [--recurring <...>]
-anti-deplay task list [--status <...>]
-anti-deplay task update <id> [--title <...>] [--due <...>] [--priority <...>]
-anti-deplay task delete <id>
-anti-deplay task delay <id> --days <1-7>
-anti-deplay task done <id>
-anti-deplay serve
+anti-delay task add <title> [--due <date>] [--priority <...>] [--recurring <...>]
+anti-delay task list [--status <...>]
+anti-delay task update <id> [--title <...>] [--due <...>] [--priority <...>]
+anti-delay task delete <id>
+anti-delay task delay <id> --days <1-7>
+anti-delay task done <id>
+anti-delay serve
 ```
 
 ## Key Behaviors

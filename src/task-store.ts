@@ -42,7 +42,7 @@ export class TaskStore {
       const dataHome =
         process.env.XDG_DATA_HOME ??
         join(process.env.HOME || "/tmp", ".local", "share");
-      this.dbPath = join(dataHome, "anti-deplay", "tasks.db");
+      this.dbPath = join(dataHome, "anti-delay", "tasks.db");
     }
 
     const dir = dirname(this.dbPath);

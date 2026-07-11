@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "anti-deplay",
+      "name": "anti-delay",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.29.0",
         "grammy": "^1.44.0",

@@ -38,7 +38,7 @@ function main() {
       console.error("TELEGRAM_BOT_TOKEN environment variable is required");
       process.exit(1);
     }
-    const cronExpr = process.env.ANTI_DEPLAY_CRON || "0 * * * *";
+    const cronExpr = process.env.ANTI_delay_CRON || "0 * * * *";
     const bot = new TelegramBot(store, token, cronExpr);
     process.on("SIGINT", () => { bot.stop(); process.exit(0); });
     process.on("SIGTERM", () => { bot.stop(); process.exit(0); });
@@ -47,13 +47,13 @@ function main() {
       process.exit(1);
     });
   } else if (args[0] === "--help" || args[0] === "-h") {
-    console.log("Usage: anti-deplay [command] [options]");
+    console.log("Usage: anti-delay [command] [options]");
     console.log("  (no args)                      Start TUI (default)");
-    console.log("  anti-deplay task <action> ...  Manage tasks");
-    console.log("  anti-deplay report             Generate task report");
-    console.log("  anti-deploy serve              Start MCP server");
-    console.log("  anti-deplay telegram           Start Telegram bot");
-    console.log("  anti-deploy --help             Show this help");
+    console.log("  anti-delay task <action> ...  Manage tasks");
+    console.log("  anti-delay report             Generate task report");
+    console.log("  anti-delay serve              Start MCP server");
+    console.log("  anti-delay telegram           Start Telegram bot");
+    console.log("  anti-delay --help             Show this help");
   } else {
     console.error(`Unknown command: ${args[0]}`);
     console.log("Use --help for usage info.");

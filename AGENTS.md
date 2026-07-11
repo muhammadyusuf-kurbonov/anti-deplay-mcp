@@ -1,4 +1,4 @@
-# anti-deplay-mcp
+# anti-delay-mcp
 
 Anti-procrastination task manager with CLI, TUI, and MCP server interfaces over a shared SQLite store.
 
@@ -33,14 +33,14 @@ Single package, no monorepo. One runtime dependency: `@modelcontextprotocol/sdk`
 
 ## Database
 
-Path: `$XDG_DATA_HOME/anti-deplay/tasks.db` → `~/.local/share/anti-deplay/tasks.db` → `/tmp/anti-deplay/tasks.db`.
+Path: `$XDG_DATA_HOME/anti-delay/tasks.db` → `~/.local/share/anti-delay/tasks.db` → `/tmp/anti-delay/tasks.db`.
 
 No migrations — schema is `CREATE TABLE IF NOT EXISTS` on every startup. Schema has columns: `id, title, description, dueDate, priority, status (pending/done/delayed), delayCount, recurring (daily/weekly/monthly/null), createdAt, updatedAt`.
 
 ## Conventions
 
 - TypeScript strict mode with `noUnusedLocals` and `noUnusedParameters`.
-- MCP tool names are snake_case with `anti_deplay_` prefix.
+- MCP tool names are snake_case with `anti_delay_` prefix.
 - CLI subcommand is `task` (dispatched as `args[0] === "task"`, stripped before forwarding).
 - Task delay is specified in hours (1–168), stored as days (ceil(hours/24)).
 - All interfaces accept `TaskStore` in the constructor.
@@ -48,6 +48,6 @@ No migrations — schema is `CREATE TABLE IF NOT EXISTS` on every startup. Schem
 
 ## Gotchas
 
-- Help text prints `anti-deploy` (typo) instead of `anti-deplay` in `src/index.ts:39-40`.
+- Help text prints `anti-deploy` (typo) instead of `anti-delay` in `src/index.ts:39-40`.
 - No `.gitignore` — `node_modules/` is present and would be tracked if committed.
 - Telegram bot is designed (`docs/superpowers/specs/`) but not implemented — no `telegram` command in dispatcher.

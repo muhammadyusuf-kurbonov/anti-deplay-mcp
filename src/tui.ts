@@ -110,7 +110,7 @@ export class TUI {
   private drawHeader(_rows: number, cols: number): void {
     setBold();
     setCyan();
-    const title = " anti-deplay ";
+    const title = " anti-delay ";
     const pending = this.tasks.length;
     write(`┌${"─".repeat(cols - 2)}┐`);
     moveTo(1, 2);

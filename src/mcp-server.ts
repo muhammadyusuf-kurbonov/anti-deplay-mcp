@@ -8,7 +8,7 @@ export class MCPServer {
 
   constructor(private store: TaskStore) {
     this.server = new McpServer({
-      name: "anti-deplay-mcp-server",
+      name: "anti-delay-mcp-server",
       version: "0.1.0",
     });
     this.registerTools();
@@ -25,7 +25,7 @@ export class MCPServer {
     }).strict();
 
     this.server.registerTool(
-      "anti_deplay_add_task",
+      "anti_delay_add_task",
       {
         title: "Add Task",
         description: `Create a new anti-procrastination task.
@@ -69,7 +69,7 @@ Returns: The created task object with id, title, dueDate, priority, status, etc.
     }).strict();
 
     this.server.registerTool(
-      "anti_deplay_list_tasks",
+      "anti_delay_list_tasks",
       {
         title: "List Tasks",
         description: `List all anti-procrastination tasks with optional filters.
@@ -114,7 +114,7 @@ Returns: Array of task objects sorted by creation date (newest first).`,
     }).strict();
 
     this.server.registerTool(
-      "anti_deplay_update_task",
+      "anti_delay_update_task",
       {
         title: "Update Task",
         description: `Update an existing task's fields. Only provided fields are updated.
@@ -164,7 +164,7 @@ Returns: The updated task object, or error if task not found.`,
     }).strict();
 
     this.server.registerTool(
-      "anti_deplay_delete_task",
+      "anti_delay_delete_task",
       {
         title: "Delete Task",
         description: `Permanently delete a task by ID.
@@ -209,7 +209,7 @@ Returns: Success confirmation or error if task not found.`,
     }).strict();
 
     this.server.registerTool(
-      "anti_deplay_delay_task",
+      "anti_delay_delay_task",
       {
         title: "Delay Task",
         description: `Postpone a task by 1-7 days. The task status changes to 'delayed' and delayCount increments.
@@ -257,7 +257,7 @@ Returns: The updated task with new dueDate and incremented delayCount.`,
     }).strict();
 
     this.server.registerTool(
-      "anti_deplay_mark_done",
+      "anti_delay_mark_done",
       {
         title: "Mark Task Done",
         description: `Mark a task as completed. If the task is recurring, a new task instance is auto-created for the next period.
@@ -301,7 +301,7 @@ Returns: The completed task. If recurring, also returns the next instance.`,
     );
 
     this.server.registerTool(
-      "anti_deplay_generate_report",
+      "anti_delay_generate_report",
       {
         title: "Generate Report",
         description: `Generate a report of all pending tasks with delay counts, sorted by due date (most urgent first).

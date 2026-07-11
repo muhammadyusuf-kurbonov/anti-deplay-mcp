@@ -33,24 +33,24 @@ export class CLI {
   private help() {
     console.log(
       [
-        "anti-deplay — anti-procrastination task manager",
+        "anti-delay — anti-procrastination task manager",
         "",
         "Usage:",
-        "  anti-deplay task add <title> [--due <date>] [--priority <low|medium|high>] [--recurring <daily|weekly|monthly>]",
-        "  anti-deplay task list [--status <pending|done|delayed>] [--priority <...>]",
-        "  anti-deplay task update <id> [--title <...>] [--due <...>] [--priority <...>]",
-        "  anti-deplay task delete <id>",
-        "  anti-deplay task delay <id> --hours <1-168>",
-        "  anti-deplay task done <id>",
-        "  anti-deplay report",
-        "  anti-deplay serve",
+        "  anti-delay task add <title> [--due <date>] [--priority <low|medium|high>] [--recurring <daily|weekly|monthly>]",
+        "  anti-delay task list [--status <pending|done|delayed>] [--priority <...>]",
+        "  anti-delay task update <id> [--title <...>] [--due <...>] [--priority <...>]",
+        "  anti-delay task delete <id>",
+        "  anti-delay task delay <id> --hours <1-168>",
+        "  anti-delay task done <id>",
+        "  anti-delay report",
+        "  anti-delay serve",
       ].join("\n"),
     );
   }
 
   private add(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task add <title> [--due <date>] [--priority <...>] [--recurring <...>]");
+      console.error("Usage: anti-delay task add <title> [--due <date>] [--priority <...>] [--recurring <...>]");
       process.exit(1);
     }
     const title = args[0];
@@ -76,7 +76,7 @@ export class CLI {
 
   private update(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task update <id> [--title <...>] [--due <...>] [--priority <...>]");
+      console.error("Usage: anti-delay task update <id> [--title <...>] [--due <...>] [--priority <...>]");
       process.exit(1);
     }
     const id = args[0];
@@ -99,7 +99,7 @@ export class CLI {
 
   private deleteTask(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task delete <id>");
+      console.error("Usage: anti-delay task delete <id>");
       process.exit(1);
     }
     const ok = this.store.delete(args[0]);
@@ -108,7 +108,7 @@ export class CLI {
 
   private delay(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task delay <id> --hours <1-168>");
+      console.error("Usage: anti-delay task delay <id> --hours <1-168>");
       process.exit(1);
     }
     const id = args[0];
@@ -125,7 +125,7 @@ export class CLI {
 
   private done(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task done <id>");
+      console.error("Usage: anti-delay task done <id>");
       process.exit(1);
     }
     const result = this.store.markDone(args[0]);
@@ -138,7 +138,7 @@ export class CLI {
 
   private report() {
     const { pending, total } = this.store.report();
-    console.log(`[ANTI-DEPLAY REPORT] ${new Date().toISOString().split("T")[0]}`);
+    console.log(`[ANTI-delay REPORT] ${new Date().toISOString().split("T")[0]}`);
     console.log(`Pending tasks: ${total}`);
     console.log();
 

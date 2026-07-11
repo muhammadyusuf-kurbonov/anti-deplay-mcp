@@ -1,4 +1,4 @@
-# anti-deplay MCP + CLI Implementation Plan
+# anti-delay MCP + CLI Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -20,7 +20,7 @@
 - [ ] **Step 1: Init project via `bun init`**
 
 ```bash
-cd /home/muhammadyusuf-kurbonov/Projects/MyProjects/anti-deplay-mcp
+cd /home/muhammadyusuf-kurbonov/Projects/MyProjects/anti-delay-mcp
 bun init -y
 ```
 
@@ -30,12 +30,12 @@ Expected: creates `package.json`, `tsconfig.json`, `index.ts` in current dir.
 
 ```json
 {
-  "name": "anti-deplay",
+  "name": "anti-delay",
   "version": "0.1.0",
   "module": "src/index.ts",
   "type": "module",
   "bin": {
-    "anti-deplay": "./src/index.ts"
+    "anti-delay": "./src/index.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.8.0"
@@ -293,9 +293,9 @@ export class TaskStore {
 function getDataDir(): string {
   const xdg = process.env.XDG_DATA_HOME;
   const home = process.env.HOME;
-  if (xdg) return `${xdg}/anti-deplay`;
-  if (home) return `${home}/.local/share/anti-deplay`;
-  return "/tmp/anti-deplay";
+  if (xdg) return `${xdg}/anti-delay`;
+  if (home) return `${home}/.local/share/anti-delay`;
+  return "/tmp/anti-delay";
 }
 ```
 
@@ -350,22 +350,22 @@ export class CLI {
 
   private help() {
     console.log(`
-anti-deplay — anti-procrastination task manager
+anti-delay — anti-procrastination task manager
 
 Usage:
-  anti-deplay task add <title> [--due <date>] [--priority <low|medium|high>] [--recurring <daily|weekly|monthly>]
-  anti-deplay task list [--status <pending|done|delayed>] [--priority <...>]
-  anti-deplay task update <id> [--title <...>] [--due <...>] [--priority <...>]
-  anti-deplay task delete <id>
-  anti-deplay task delay <id> --days <1-7>
-  anti-deplay task done <id>
-  anti-deplay serve
+  anti-delay task add <title> [--due <date>] [--priority <low|medium|high>] [--recurring <daily|weekly|monthly>]
+  anti-delay task list [--status <pending|done|delayed>] [--priority <...>]
+  anti-delay task update <id> [--title <...>] [--due <...>] [--priority <...>]
+  anti-delay task delete <id>
+  anti-delay task delay <id> --days <1-7>
+  anti-delay task done <id>
+  anti-delay serve
     `.trim());
   }
 
   private add(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task add <title> [--due <date>] [--priority <...>] [--recurring <...>]");
+      console.error("Usage: anti-delay task add <title> [--due <date>] [--priority <...>] [--recurring <...>]");
       process.exit(1);
     }
     const title = args[0];
@@ -391,7 +391,7 @@ Usage:
 
   private update(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task update <id> [--title <...>] [--due <...>] [--priority <...>]");
+      console.error("Usage: anti-delay task update <id> [--title <...>] [--due <...>] [--priority <...>]");
       process.exit(1);
     }
     const id = args[0];
@@ -411,7 +411,7 @@ Usage:
 
   private deleteTask(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task delete <id>");
+      console.error("Usage: anti-delay task delete <id>");
       process.exit(1);
     }
     const ok = this.store.delete(args[0]);
@@ -420,7 +420,7 @@ Usage:
 
   private delay(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task delay <id> --days <1-7>");
+      console.error("Usage: anti-delay task delay <id> --days <1-7>");
       process.exit(1);
     }
     const id = args[0];
@@ -433,7 +433,7 @@ Usage:
 
   private done(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task done <id>");
+      console.error("Usage: anti-delay task done <id>");
       process.exit(1);
     }
     const result = this.store.markDone(args[0]);
@@ -494,7 +494,7 @@ export class MCPServer {
 
   constructor(private store: TaskStore) {
     this.server = new Server(
-      { name: "anti-deplay", version: "0.1.0" },
+      { name: "anti-delay", version: "0.1.0" },
       { capabilities: { tools: {}, resources: {} } }
     );
     this.registerHandlers();
@@ -682,9 +682,9 @@ function main() {
   const args = argv.slice(2);
 
   if (args.length === 0) {
-    console.log("Usage: anti-deplay <command> [options]");
-    console.log("  anti-deplay task <action> ...   Manage tasks");
-    console.log("  anti-deplay serve               Start MCP server");
+    console.log("Usage: anti-delay <command> [options]");
+    console.log("  anti-delay task <action> ...   Manage tasks");
+    console.log("  anti-delay serve               Start MCP server");
     exit(1);
   }
 
@@ -755,5 +755,5 @@ Expected: each command works, delay shows count
 - [ ] **Step 2: Final commit**
 
 ```bash
-git add -A && git commit -m "feat: complete anti-deplay MVP"
+git add -A && git commit -m "feat: complete anti-delay MVP"
 ```
