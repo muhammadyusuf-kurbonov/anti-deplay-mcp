@@ -7,7 +7,7 @@
     "anti-deplay": "./src/index.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.8.0"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

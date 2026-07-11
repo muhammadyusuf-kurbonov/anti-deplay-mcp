@@ -281,6 +281,14 @@ export class TaskStore {
     return date.toISOString().split("T")[0];
   }
 
+  report(): { pending: Task[]; total: number } {
+    const pending = this.db
+      .query("SELECT * FROM tasks WHERE status = 'pending' ORDER BY dueDate ASC")
+      .all() as Task[];
+
+    return { pending, total: pending.length };
+  }
+
   close(): void {
     this.db.close();
   }

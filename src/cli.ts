@@ -21,6 +21,8 @@ export class CLI {
         return this.delay(args.slice(1));
       case "done":
         return this.done(args.slice(1));
+      case "report":
+        return this.report();
       default:
         console.error(`Unknown command: ${args[0]}`);
         this.help();
@@ -40,6 +42,7 @@ export class CLI {
         "  anti-deplay task delete <id>",
         "  anti-deplay task delay <id> --days <1-7>",
         "  anti-deplay task done <id>",
+        "  anti-deplay report",
         "  anti-deplay serve",
       ].join("\n"),
     );
@@ -130,6 +133,27 @@ export class CLI {
       process.exit(1);
     }
     console.log("Task marked done.");
+  }
+
+  private report() {
+    const { pending, total } = this.store.report();
+    console.log(`[ANTI-DEPLAY REPORT] ${new Date().toISOString().split("T")[0]}`);
+    console.log(`Pending tasks: ${total}`);
+    console.log();
+
+    for (const t of pending) {
+      const flagged = t.delayCount >= 3 ? " ⚠️" : "";
+      console.log(`  [${t.status}] ${t.id.slice(0, 8)}: ${t.title}${flagged}`);
+      console.log(`    Due: ${t.dueDate} | Priority: ${t.priority}`);
+      if (t.delayCount > 0) {
+        console.log(`    Delayed ${t.delayCount}x`);
+      }
+      console.log();
+    }
+
+    if (total === 0) {
+      console.log("  No active tasks. Good work!");
+    }
   }
 
   private getFlag(args: string[], name: string): string | undefined {
