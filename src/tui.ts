@@ -1,68 +1,81 @@
 import { TaskStore, Task } from "./task-store";
-
-const ESC = "\x1b";
-const CSI = `${ESC}[`;
-
-function hideCursor(): void {
-  process.stdout.write(`${CSI}?25l`);
-}
-
-function showCursor(): void {
-  process.stdout.write(`${CSI}?25h`);
-}
-
-function clearScreen(): void {
-  process.stdout.write(`${CSI}2J${CSI}H`);
-}
-
-function moveTo(row: number, col: number): void {
-  process.stdout.write(`${CSI}${row};${col}H`);
-}
-
-function write(text: string): void {
-  process.stdout.write(text);
-}
-
-function clearLine(): void {
-  process.stdout.write(`${CSI}2K`);
-}
-
-function setBold(): void {
-  process.stdout.write(`${CSI}1m`);
-}
-
-function setDim(): void {
-  process.stdout.write(`${CSI}2m`);
-}
-
-function setRed(): void {
-  process.stdout.write(`${CSI}31m`);
-}
-
-
-
-function setCyan(): void {
-  process.stdout.write(`${CSI}36m`);
-}
-
-function resetStyle(): void {
-  process.stdout.write(`${CSI}0m`);
-}
-
-function invertColors(): void {
-  process.stdout.write(`${CSI}7m`);
-}
+import * as blessed from "blessed";
 
 export class TUI {
   private store: TaskStore;
+  private screen: blessed.Widgets.Screen;
+  private list: blessed.Widgets.ListElement;
+  private header: blessed.Widgets.BoxElement;
+  private footer: blessed.Widgets.BoxElement;
   private tasks: Task[] = [];
-  private selected = 0;
-  private running = true;
-  private statusMessage = "";
-  private inputBuffer = "";
+  private modalActive = false;
+  private closeModal: (() => void) | null = null;
 
   constructor(store: TaskStore) {
     this.store = store;
+
+    this.screen = blessed.screen({
+      smartCSR: true,
+      title: "anti-delay",
+    });
+
+    this.header = blessed.box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: 1,
+      style: { bold: true, fg: "cyan" },
+    });
+
+    this.list = blessed.list({
+      parent: this.screen,
+      top: 1,
+      left: 0,
+      width: "100%",
+      height: "100%-2",
+      keys: true,
+      vi: true,
+      mouse: true,
+      style: {
+        selected: { invert: true },
+      },
+    });
+
+    this.footer = blessed.box({
+      parent: this.screen,
+      bottom: 0,
+      left: 0,
+      width: "100%",
+      height: 1,
+      style: { fg: "white", dim: true },
+    });
+
+    this.screen.key(["q", "C-c"], () => {
+      if (!this.modalActive) this.quit();
+    });
+    this.screen.key(" ", () => {
+      if (!this.modalActive) this.markDone();
+    });
+    this.screen.key("d", () => {
+      if (!this.modalActive) this.delayModal();
+    });
+    this.screen.key("a", () => {
+      if (!this.modalActive) this.addTaskModal();
+    });
+    this.screen.key("r", () => {
+      if (!this.modalActive) {
+        this.loadTasks();
+        this.render();
+      }
+    });
+    this.screen.key("escape", () => {
+      if (this.closeModal) {
+        this.closeModal();
+      }
+    });
+
+    this.screen.on("resize", () => this.render());
   }
 
   async run(): Promise<void> {
@@ -70,279 +83,263 @@ export class TUI {
       console.error("TUI requires a TTY");
       process.exit(1);
     }
-
-    hideCursor();
     this.loadTasks();
     this.render();
-    this.listen();
+  }
+
+  private selectedIndex(): number {
+    return (this.list as any).selected as number;
   }
 
   private loadTasks(): void {
-    const report = this.store.report();
-    this.tasks = report.pending;
-    if (this.selected >= this.tasks.length) {
-      this.selected = Math.max(0, this.tasks.length - 1);
+    this.tasks = this.store.report().pending;
+    const sel = this.selectedIndex();
+    if (sel >= this.tasks.length) {
+      this.list.select(Math.max(0, this.tasks.length - 1));
     }
   }
 
   private render(): void {
-    const rows = process.stdout.rows || 24;
-    const cols = process.stdout.columns || 80;
-
-    clearScreen();
-
-    this.drawHeader(rows, cols);
-    this.drawTaskList(rows, cols);
-    this.drawFooter(rows, cols);
-    if (this.statusMessage) {
-      moveTo(rows, 1);
-      clearLine();
-      setDim();
-      write(` ${this.statusMessage}`);
-      resetStyle();
-      setTimeout(() => {
-        this.statusMessage = "";
-        this.render();
-      }, 3000);
-    }
-  }
-
-  private drawHeader(_rows: number, cols: number): void {
-    setBold();
-    setCyan();
-    const title = " anti-delay ";
     const pending = this.tasks.length;
-    write(`┌${"─".repeat(cols - 2)}┐`);
-    moveTo(1, 2);
-    write(`${title}${" ".repeat(cols - title.length - 8)}Pending: ${pending}`);
-    resetStyle();
-  }
+    const titleText = " anti-delay ";
+    this.header.setContent(
+      `${titleText}${" ".repeat(Math.max(0, this.screen.cols - titleText.length - 20))}Pending: ${pending}`,
+    );
 
-  private drawTaskList(rows: number, _cols: number): void {
-    const tableTop = 2;
-    const tasksToShow = this.tasks.slice(0, Math.max(1, rows - 4));
-
-    for (let i = 0; i < tasksToShow.length; i++) {
-      const row = tableTop + 1 + i;
-      moveTo(row, 1);
-      clearLine();
-
-      const t = tasksToShow[i];
-      const selected = i === this.selected;
-
-      if (selected) {
-        invertColors();
-      }
-
+    const items = this.tasks.map((t) => {
       let flag = "";
-      if (t.delayCount >= 3) {
-        flag = " ⚠";
-      } else if (t.delayCount > 0) {
-        flag = ` ~${t.delayCount}x`;
-      }
+      if (t.delayCount >= 3) flag = "⚠";
+      else if (t.delayCount > 0) flag = `~${t.delayCount}x`;
 
-      write(` ${selected ? "▸" : " "} [${t.status}] ${t.title}${flag}`);
-      moveTo(row, Math.max(40, _cols - 30));
-      write(`Due: ${t.dueDate}`);
-
-      if (selected) {
-        resetStyle();
-      }
-      resetStyle();
-    }
-
-    if (this.tasks.length === 0) {
-      moveTo(tableTop + 2, 3);
-      setDim();
-      write("No pending tasks. Good work.");
-      resetStyle();
-    }
-  }
-
-  private drawFooter(rows: number, _cols: number): void {
-    moveTo(rows, 1);
-    clearLine();
-    setDim();
-    write(` d:delay hours  space:done  ↑↓:navigate  r:refresh  q:quit `);
-    resetStyle();
-  }
-
-  private listen(): void {
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    process.stdin.setEncoding("utf8");
-
-    process.stdin.on("data", (chunk: string) => {
-      if (!this.running) return;
-
-      const seq = this.inputBuffer + chunk;
-      this.inputBuffer = "";
-
-      if (seq === "q" || seq === "\x03") {
-        this.quit();
-        return;
-      }
-
-      if (seq === "\x1b[A" || seq === "k") {
-        this.selected = Math.max(0, this.selected - 1);
-        this.render();
-        return;
-      }
-
-      if (seq === "\x1b[B" || seq === "j") {
-        this.selected = Math.min(this.tasks.length - 1, this.selected + 1);
-        this.render();
-        return;
-      }
-
-      if (seq === "r") {
-        this.statusMessage = "Refreshed.";
-        this.loadTasks();
-        this.render();
-        return;
-      }
-
-      if (seq === " ") {
-        this.markDone();
-        return;
-      }
-
-      if (seq === "d") {
-        this.statusMessage = "";
-        this.delayModal();
-        return;
-      }
-
-      if (seq.startsWith("\x1b")) {
-        this.inputBuffer = seq;
-      }
+      const title =
+        t.title.length > 38 ? t.title.slice(0, 37) + "…" : t.title.padEnd(38);
+      return ` [${t.status}] ${title} Due: ${t.dueDate}${flag ? " " + flag : ""}`;
     });
+
+    if (items.length === 0) {
+      items.push(" No pending tasks. Good work.");
+    }
+
+    this.list.setItems(items);
+    this.footer.setContent(
+      " a:add  d:delay  space:done  ↑↓:navigate  r:refresh  q:quit ",
+    );
+    this.screen.render();
   }
 
-  private async markDone(): Promise<void> {
-    const task = this.tasks[this.selected];
-    if (!task) return;
-
-    const result = this.store.markDone(task.id);
-    if (!result.ok) {
-      this.statusMessage = `Error: ${result.error}`;
-      this.render();
-      return;
-    }
-    this.statusMessage = `"${task.title}" done.${result.next ? " Next instance created." : ""}`;
+  private modalCleanup(): void {
+    this.modalActive = false;
+    this.closeModal = null;
     this.loadTasks();
     this.render();
   }
 
-  private async delayModal(): Promise<void> {
-    const task = this.tasks[this.selected];
-    if (!task) return;
+  private addTaskModal(): void {
+    this.modalActive = true;
 
-    const rows = process.stdout.rows || 24;
-    const cols = process.stdout.columns || 80;
-    const modalH = 5;
-    const modalW = 46;
-    const top = Math.floor((rows - modalH) / 2);
-    const left = Math.floor((cols - modalW) / 2);
+    const box = blessed.box({
+      parent: this.screen,
+      top: "center",
+      left: "center",
+      width: 52,
+      height: 11,
+      border: { type: "line" },
+      label: " Add New Task ",
+      style: { border: { fg: "cyan" } },
+    });
 
-    process.stdin.removeAllListeners("data");
+    blessed.text({ parent: box, top: 0, left: 2, content: "Title:" });
+    const titleInput = blessed.textbox({
+      parent: box,
+      top: 1,
+      left: 2,
+      width: 44,
+      height: 1,
+      inputOnFocus: true,
+    });
 
-    let input = "";
-    let error = "";
+    blessed.text({ parent: box, top: 2, left: 2, content: "Description:" });
+    const descInput = blessed.textbox({
+      parent: box,
+      top: 3,
+      left: 2,
+      width: 44,
+      height: 1,
+      inputOnFocus: true,
+    });
 
-    const drawBox = () => {
-      for (let r = top; r < top + modalH && r < rows; r++) {
-        moveTo(r, left);
-        clearLine();
-        if (r === top) {
-          setBold();
-          setCyan();
-          write(`┌${"─".repeat(modalW - 2)}┐`);
-        } else if (r === top + 1) {
-          setBold();
-          write(`│ ${`Delay "${task.title.slice(0, 30)}"`}${" ".repeat(Math.max(0, modalW - 38 - 4))} │`);
-        } else if (r === top + 2) {
-          write(`│ ${" ".repeat(modalW - 4)} │`);
-        } else if (r === top + 3) {
-          write(`│ Hours (1-168): ${input}${" ".repeat(Math.max(0, modalW - 18 - input.length - 2))} │`);
-        } else if (r === top + 4) {
-          write(`│ ${" ".repeat(modalW - 4)} │`);
-        }
-        resetStyle();
-      }
-      if (error) {
-        moveTo(top + modalH + 1, left + 2);
-        setRed();
-        write(error);
-        resetStyle();
-      }
-      moveTo(top + 3, left + 18 + input.length + 1);
-    };
+    blessed.text({ parent: box, top: 4, left: 2, content: "Due (YYYY-MM-DD):" });
+    const dueInput = blessed.textbox({
+      parent: box,
+      top: 5,
+      left: 2,
+      width: 44,
+      height: 1,
+      inputOnFocus: true,
+    });
 
-    drawBox();
-    showCursor();
+    blessed.text({ parent: box, top: 6, left: 2, content: "Priority [medium]:" });
+    const priorityInput = blessed.textbox({
+      parent: box,
+      top: 7,
+      left: 2,
+      width: 44,
+      height: 1,
+      inputOnFocus: true,
+    });
 
-    const modalHandler = (chunk: string) => {
-      const key = chunk;
+    const submitBtn = blessed.button({
+      parent: box,
+      top: 9,
+      left: 6,
+      width: 14,
+      height: 1,
+      content: " Submit ",
+      align: "center",
+      keys: true,
+      style: {
+        bold: true,
+        fg: "white",
+        bg: "blue",
+        focus: { bg: "green" },
+      },
+    });
 
-      if (key === "\r" || key === "\n") {
-        const num = parseInt(input, 10);
-        if (isNaN(num) || num < 1 || num > 168) {
-          error = "Enter a number between 1 and 168";
-          drawBox();
-          return;
-        }
-        cleanup();
-        const result = this.store.delay(task.id, num);
-        if ("error" in result) {
-          this.statusMessage = `Error: ${result.error}`;
-        } else {
-          this.statusMessage = result.message;
-        }
-        this.loadTasks();
-        this.render();
-        return;
-      }
-
-      if (key === "\x1b" || key === "\x03") {
-        cleanup();
-        this.statusMessage = "Cancelled.";
-        this.render();
-        return;
-      }
-
-      if (key === "\x7f" || key === "\b") {
-        input = input.slice(0, -1);
-        error = "";
-        drawBox();
-        return;
-      }
-
-      if (key.length === 1 && key >= "0" && key <= "9" && input.length < 3) {
-        input += key;
-        error = "";
-        drawBox();
-      }
-    };
-
-    process.stdin.on("data", modalHandler);
+    const cancelBtn = blessed.button({
+      parent: box,
+      top: 9,
+      left: 26,
+      width: 14,
+      height: 1,
+      content: " Cancel ",
+      align: "center",
+      keys: true,
+      style: {
+        bold: true,
+        fg: "white",
+        bg: "red",
+        focus: { bg: "green" },
+      },
+    });
 
     const cleanup = () => {
-      hideCursor();
-      process.stdin.removeListener("data", modalHandler);
-      process.stdin.removeAllListeners("data");
-      this.listen();
+      box.destroy();
+      this.modalCleanup();
     };
+    this.closeModal = cleanup;
+
+    titleInput.focus();
+
+    submitBtn.on("press", () => {
+      const title = titleInput.value?.trim();
+      const dueDate = dueInput.value?.trim();
+      if (!title || !dueDate) return;
+      this.store.create({
+        title,
+        description: descInput.value?.trim() || undefined,
+        dueDate,
+        priority: (priorityInput.value?.trim() ||
+          "medium") as "low" | "medium" | "high",
+      });
+      cleanup();
+    });
+
+    cancelBtn.on("press", cleanup);
+
+    this.screen.render();
+  }
+
+  private markDone(): void {
+    const task = this.tasks[this.selectedIndex()];
+    if (!task) return;
+    this.store.markDone(task.id);
+    this.loadTasks();
+    this.render();
+  }
+
+  private delayModal(): void {
+    const task = this.tasks[this.selectedIndex()];
+    if (!task) return;
+
+    this.modalActive = true;
+
+    const box = blessed.box({
+      parent: this.screen,
+      top: "center",
+      left: "center",
+      width: 40,
+      height: 7,
+      border: { type: "line" },
+      label: ` Delay: ${task.title.slice(0, 18)} `,
+      style: { border: { fg: "cyan" } },
+    });
+
+    blessed.text({ parent: box, top: 0, left: 2, content: "Hours (1-168):" });
+    const input = blessed.textbox({
+      parent: box,
+      top: 1,
+      left: 2,
+      width: 32,
+      height: 1,
+      inputOnFocus: true,
+    });
+
+    const submitBtn = blessed.button({
+      parent: box,
+      top: 4,
+      left: 4,
+      width: 12,
+      height: 1,
+      content: " Submit ",
+      align: "center",
+      keys: true,
+      style: {
+        bold: true,
+        fg: "white",
+        bg: "blue",
+        focus: { bg: "green" },
+      },
+    });
+
+    const cancelBtn = blessed.button({
+      parent: box,
+      top: 4,
+      left: 20,
+      width: 12,
+      height: 1,
+      content: " Cancel ",
+      align: "center",
+      keys: true,
+      style: {
+        bold: true,
+        fg: "white",
+        bg: "red",
+        focus: { bg: "green" },
+      },
+    });
+
+    const cleanup = () => {
+      box.destroy();
+      this.modalCleanup();
+    };
+    this.closeModal = cleanup;
+
+    input.focus();
+
+    submitBtn.on("press", () => {
+      const num = parseInt(input.value, 10);
+      if (isNaN(num) || num < 1 || num > 168) return;
+      this.store.delay(task.id, num);
+      cleanup();
+    });
+
+    cancelBtn.on("press", cleanup);
+
+    this.screen.render();
   }
 
   private quit(): void {
-    this.running = false;
-    process.stdin.removeAllListeners("data");
-    process.stdin.setRawMode(false);
-    process.stdin.pause();
-    clearScreen();
-    showCursor();
-    moveTo(1, 1);
+    this.screen.destroy();
     process.exit(0);
   }
 }
