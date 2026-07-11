@@ -40,7 +40,7 @@ export class CLI {
         "  anti-deplay task list [--status <pending|done|delayed>] [--priority <...>]",
         "  anti-deplay task update <id> [--title <...>] [--due <...>] [--priority <...>]",
         "  anti-deplay task delete <id>",
-        "  anti-deplay task delay <id> --days <1-7>",
+        "  anti-deplay task delay <id> --hours <1-168>",
         "  anti-deplay task done <id>",
         "  anti-deplay report",
         "  anti-deplay serve",
@@ -108,12 +108,13 @@ export class CLI {
 
   private delay(args: string[]) {
     if (args.length === 0) {
-      console.error("Usage: anti-deplay task delay <id> --days <1-7>");
+      console.error("Usage: anti-deplay task delay <id> --hours <1-168>");
       process.exit(1);
     }
     const id = args[0];
     const days = parseInt(this.getFlag(args, "--days") ?? "0", 10);
-    const result = this.store.delay(id, days);
+    const hours = parseInt(this.getFlag(args, "--hours") ?? "0", 10);
+    const result = this.store.delay(id, hours || days * 24);
     if ("error" in result) {
       console.error(result.error);
       process.exit(1);

@@ -196,10 +196,10 @@ export class TaskStore {
 
   delay(
     id: string,
-    days: number,
+    hours: number,
   ): { task: Task; message: string } | { error: string } {
-    if (days < 1 || days > 7) {
-      return { error: "Days must be between 1 and 7" };
+    if (hours < 1 || hours > 168) {
+      return { error: "Hours must be between 1 and 168 (7 days)" };
     }
 
     const task = this.getById(id);
@@ -210,6 +210,7 @@ export class TaskStore {
       return { error: "Cannot delay a completed task" };
     }
 
+    const days = Math.ceil(hours / 24);
     const currentDue = new Date(task.dueDate + "T00:00:00");
     currentDue.setDate(currentDue.getDate() + days);
     const newDueDate = currentDue.toISOString().split("T")[0];
@@ -230,7 +231,7 @@ export class TaskStore {
     const updated = this.getById(id)!;
     return {
       task: updated,
-      message: `Delayed to ${newDueDate}. You've delayed this task ${newDelayCount} times.`,
+      message: `Delayed to ${newDueDate} (${hours}h → ${days}d). You've delayed this task ${newDelayCount} times.`,
     };
   }
 
